@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Matrix Comparison — Digit Recognition</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;600&display=swap');
+
+  :root {
+    --bg: #0d0d0f;
+    --surface: #16161a;
+    --border: #2a2a32;
+    --accent: #00e5a0;
+    --accent2: #ff4d6d;
+    --text: #e8e8f0;
+    --muted: #6b6b80;
+    --pixel-on: #1a1a22;
+    --pixel-off: #00e5a0;
+    --diff-add: #ff4d6d;
+    --diff-same: #00e5a0;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    padding: 32px 24px;
+  }
+
+  header {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 40px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 20px;
+  }
+
+  header h1 {
+    font-family: 'Space Mono', monospace;
+    font-size: 1.1rem;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  header span {
+    font-size: 0.8rem;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+  }
+
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 32px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+  }
+
+  .panel-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 16px;
+  }
+
+  /* Pixel grid */
+  .pixel-grid {
+    display: grid;
+    grid-template-columns: repeat(20, 1fr);
+    gap: 1.5px;
+    width: 100%;
+    aspect-ratio: 1;
+  }
+
+  .pixel {
+    aspect-ratio: 1;
+    border-radius: 1px;
+    transition: background 0.15s;
+  }
+
+  .pixel.on  { background: var(--pixel-on); }
+  .pixel.off { background: var(--pixel-off); }
+
+  /* Diff grid */
+  .pixel.match  { background: #1e2e28; }
+  .pixel.differ { background: var(--diff-add); opacity: 0.85; }
+
+  /* Input panel */
+  .input-section {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .score-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0, 229, 160, 0.1);
+    border: 1px solid rgba(0, 229, 160, 0.3);
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--accent);
+  }
+
+  .score-badge.best {
+    background: rgba(0, 229, 160, 0.15);
+    border-color: var(--accent);
+    font-size: 0.85rem;
+  }
+
+  /* Comparison list */
+  .comparison-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .entry {
+    display: grid;
+    grid-template-columns: 56px 90px 90px 90px 1fr;
+    gap: 12px;
+    align-items: center;
+    padding: 12px 14px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+
+  .entry:hover { border-color: var(--accent); background: #12121a; }
+  .entry.selected { border-color: var(--accent); background: #0e1e1a; }
+
+  .entry-rank {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  .entry-rank .rank-num {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--muted);
+    display: block;
+    line-height: 1;
+  }
+
+  .entry.selected .rank-num,
+  .entry:first-child .rank-num { color: var(--accent); }
+
+  .entry-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text);
+    text-align: center;
+  }
+
+  .entry.selected .entry-label { color: var(--accent); }
+
+  .mini-grid {
+    display: grid;
+    grid-template-columns: repeat(20, 1fr);
+    gap: 0.5px;
+    width: 80px;
+    height: 80px;
+  }
+
+  .mini-pixel { aspect-ratio: 1; }
+  .mini-pixel.on  { background: #1e1e28; }
+  .mini-pixel.off { background: var(--accent); }
+  .mini-pixel.differ { background: var(--diff-add); }
+  .mini-pixel.match  { background: #1a1a24; }
+
+  .score-bar-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    flex: 1;
+  }
+
+  .score-label {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--muted);
+  }
+
+  .score-label .val { color: var(--text); }
+
+  .score-bar-bg {
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .score-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: var(--accent);
+    transition: width 0.4s ease;
+  }
+
+  .entry.selected .score-bar-fill { background: var(--accent); }
+
+  /* Diff panel */
+  .diff-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .diff-legend {
+    display: flex;
+    gap: 16px;
+    font-size: 0.72rem;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+  }
+
+  .diff-legend span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+  }
+
+  .diff-grids {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+  }
+
+  .diff-item h3 {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 8px;
+    text-align: center;
+  }
+
+  .diff-item .big-label {
+    text-align: center;
+    font-family: 'Space Mono', monospace;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+
+  .diff-score {
+    text-align: center;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.8rem;
+    margin-top: 8px;
+  }
+
+  .diff-score .num { color: var(--accent2); font-size: 1.1rem; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  .fade-in { animation: fadeIn 0.25s ease both; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Matrix Comparison</h1>
+  <span>// digit recognition · 20×20 binary pixels</span>
+</header>
+
+<div class="main-grid">
+  <!-- Left: input image -->
+  <div class="input-section">
+    <div class="panel">
+      <div class="panel-title">Input image.jpg</div>
+      <div class="pixel-grid" id="inputGrid"></div>
+      <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+        <div class="score-badge best">✓ Predicted: <strong id="predLabel">11</strong></div>
+        <div class="score-badge">Score: <strong id="predScore">58</strong></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Legend</div>
+      <div class="diff-legend" style="flex-direction:column; gap:8px;">
+        <span><span class="legend-dot" style="background:var(--accent)"></span> Pixel = 0 (dark / digit)</span>
+        <span><span class="legend-dot" style="background:#1a1a22"></span> Pixel = 1 (white / background)</span>
+        <span><span class="legend-dot" style="background:var(--diff-add)"></span> Difference with reference</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: ranked comparisons + diff -->
+  <div style="display:flex; flex-direction:column; gap:24px;">
+    <div class="panel diff-section" id="diffPanel">
+      <div class="panel-title">Visual diff — selected reference</div>
+      <div class="diff-grids" id="diffGrids"></div>
+      <div class="diff-legend">
+        <span><span class="legend-dot" style="background:var(--accent)"></span> Match</span>
+        <span><span class="legend-dot" style="background:var(--diff-add)"></span> Mismatch</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Top 10 closest matches — sorted by distance score</div>
+      <div class="comparison-list" id="compList"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const inputMatrix = [[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,0,0,1,1,1,1,1,0,0,1,1,1,1],[1,1,1,1,1,1,0,0,0,1,1,1,1,0,0,0,1,1,1,1],[1,1,1,1,0,0,0,0,0,1,1,0,0,0,0,0,1,1,1,1],[1,1,1,1,0,0,0,0,0,1,1,0,0,0,0,0,1,1,1,1],[1,1,1,1,1,1,0,0,0,1,1,1,1,0,0,0,1,1,1,1],[1,1,1,1,1,1,0,0,0,1,1,1,1,0,0,0,1,1,1,1],[1,1,1,1,1,1,0,0,0,1,1,1,1,0,0,0,1,1,1,1],[1,1,1,1,1,1,0,0,0,1,1,1,1,0,0,0,1,1,1,1],[1,1,1,1,1,1,0,0,0,1,1,1,1,0,0,0,1,1,1,1],[1,1,1,1,1,1,0,0,0,1,1,1,1,0,0,0,1,1,1,1],[1,1,1,1,1,1,0,0,0,1,1,1,1,0,0,0,1,1,1,1],[1,1,1,1,1,1,0,0,0,1,1,1,1,0,0,0,1,1,1,1],[1,1,1,1,1,1,0,0,0,1,1,1,1,0,0,0,1,1,1,1],[1,1,1,1,1,1,0,0,0,1,1,1,1,0,0,0,1,1,1,1],[1,1,1,1,1,1,0,0,0,1,1,1,1,0,0,0,1,1,1,1],[1,1,1,1,1,1,0,0,0,1,1,1,1,0,0,0,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]];
+
+const top10 = [{"label":"11","score":58,"matrix":[[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,0,0,1,1,1,1,1,0,0,1,1,1,1],[1,1,1,1,0,0,0,0,0,1,1,0,0,0,0,0,1,1,1,1],[1,1,1,1,1,1,1,0,0,1,1,1,1,1,0,0,1,1,1,1],[1,1,1,1,1,1,1,0,1,1,1,1,1,1,0,1,1,1,1,1],[1,1,1,1,1,1,1,0,1,1,1,1,1,1,0,1,1,1,1,1],[1,1,1,1,1,1,1,0,1,1,1,1,1,1,0,1,1,1,1,1],[1,1,1,1,1,1,0,0,1,1,1,1,1,0,0,1,1,1,1,1],[1,1,1,1,1,1,0,0,1,1,1,1,1,0,0,1,1,1,1,1],[1,1,1,1,1,1,0,0,1,1,1,1,1,0,0,1,1,1,1,1],[1,1,1,1,1,1,0,0,1,1,1,1,1,0,0,1,1,1,1,1],[1,1,1,1,1,1,0,1,1,1,1,1,1,0,1,1,1,1,1,1],[1,1,1,1,1,1,0,1,1,1,1,1,1,0,1,1,1,1,1,1],[1,1,1,0,0,0,0,0,0,1,0,0,0,0,0,0,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]]},{"label":"41","score":78,"matrix":[[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,0,0,1,1,1],[1,1,1,1,1,1,1,0,0,1,1,1,0,0,0,0,0,1,1,1],[1,1,1,1,1,1,0,0,1,1,1,1,1,1,1,0,0,1,1,1],[1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,0,1,1,1,1],[1,1,1,1,1,0,0,1,1,0,1,1,1,1,1,0,1,1,1,1],[1,1,1,1,1,0,1,1,0,1,1,1,1,1,1,0,1,1,1,1],[1,1,1,1,0,1,1,1,0,1,1,1,1,1,0,0,1,1,1,1],[1,1,1,0,0,1,1,1,0,1,1,1,1,1,0,0,1,1,1,1],[1,1,1,0,1,1,1,0,0,1,1,1,1,1,0,0,1,1,1,1],[1,1,0,0,0,0,0,0,0,0,1,1,1,1,0,0,1,1,1,1],[1,1,1,1,1,1,1,0,0,1,1,1,1,1,0,1,1,1,1,1],[1,1,1,1,1,1,1,0,0,1,1,1,1,1,0,1,1,1,1,1],[1,1,1,1,1,1,1,0,1,1,1,0,0,0,0,0,0,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]]},{"label":"51","score":83,"matrix":[[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,0,0,0,0,0,1,1,1,1,0,0,1,1,1,1],[1,1,1,1,0,0,1,1,1,1,1,0,0,0,0,0,1,1,1,1],[1,1,1,1,0,1,1,1,1,1,1,1,1,1,0,0,1,1,1,1],[1,1,1,1,0,1,1,1,1,1,1,1,1,1,0,1,1,1,1,1],[1,1,1,1,0,1,1,1,1,1,1,1,1,1,0,1,1,1,1,1],[1,1,1,0,0,0,0,0,1,1,1,1,1,1,0,1,1,1,1,1],[1,1,1,1,1,1,1,1,0,1,1,1,1,0,0,1,1,1,1,1],[1,1,1,1,1,1,1,1,0,0,1,1,1,0,0,1,1,1,1,1],[1,1,1,1,1,1,1,1,0,0,1,1,1,0,0,1,1,1,1,1],[1,1,1,0,1,1,1,1,0,0,1,1,1,0,0,1,1,1,1,1],[1,1,0,0,1,1,1,1,0,1,1,1,1,0,1,1,1,1,1,1],[1,1,0,0,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,1],[1,1,1,0,0,0,0,1,1,1,0,0,0,0,0,0,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]]},{"label":"91","score":84,"matrix":[[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,0,0,0,0,1,1,1,1,1,0,0,1,1,1,1],[1,1,1,1,0,0,1,1,0,0,1,0,0,0,0,0,1,1,1,1],[1,1,1,0,0,1,1,1,1,0,1,1,1,1,0,0,1,1,1,1],[1,1,1,0,0,1,1,1,1,0,1,1,1,1,0,1,1,1,1,1],[1,1,1,0,0,1,1,1,1,0,1,1,1,1,0,1,1,1,1,1],[1,1,1,0,0,1,1,1,0,0,1,1,1,1,0,1,1,1,1,1],[1,1,1,1,0,0,0,0,0,0,1,1,1,0,0,1,1,1,1,1],[1,1,1,1,1,1,1,1,0,0,1,1,1,0,0,1,1,1,1,1],[1,1,1,1,1,1,1,0,0,1,1,1,1,0,0,1,1,1,1,1],[1,1,1,1,1,1,0,0,1,1,1,1,1,0,0,1,1,1,1,1],[1,1,1,1,1,0,0,1,1,1,1,1,1,0,1,1,1,1,1,1],[1,1,1,1,0,0,1,1,1,1,1,1,1,0,1,1,1,1,1,1],[1,1,1,0,1,1,1,1,1,1,0,0,0,0,0,0,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]]},{"label":"71","score":86,"matrix":[[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,0,0,0,0,0,0,0,1,1,1,0,0,1,1,1,1],[1,1,1,0,0,1,1,1,1,0,1,0,0,0,0,0,1,1,1,1],[1,1,1,0,1,1,1,1,0,0,1,1,1,1,0,0,1,1,1,1],[1,1,1,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1],[1,1,1,1,1,1,1,0,1,1,1,1,1,1,0,1,1,1,1,1],[1,1,1,1,1,1,0,0,1,1,1,1,1,1,0,1,1,1,1,1],[1,1,1,1,1,1,0,1,1,1,1,1,1,0,0,1,1,1,1,1],[1,1,1,1,1,0,0,1,1,1,1,1,1,0,0,1,1,1,1,1],[1,1,1,1,0,0,1,1,1,1,1,1,1,0,0,1,1,1,1,1],[1,1,1,1,0,0,1,1,1,1,1,1,1,0,0,1,1,1,1,1],[1,1,1,1,0,0,1,1,1,1,1,1,1,0,1,1,1,1,1,1],[1,1,1,1,0,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1],[1,1,1,1,0,1,1,1,1,1,0,0,0,0,0,0,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]]},{"label":"13","score":88,"matrix":[[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,0,0,1,1,1,1,0,0,0,0,1,1,1,1],[1,1,1,0,0,0,0,0,1,1,1,0,0,1,1,0,0,1,1,1],[1,1,1,1,1,1,0,0,1,1,1,0,1,1,1,0,0,1,1,1],[1,1,1,1,1,1,0,1,1,1,1,0,1,1,1,0,0,1,1,1],[1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,0,0,1,1,1],[1,1,1,1,1,1,0,1,1,1,1,1,1,1,0,0,1,1,1,1],[1,1,1,1,1,0,0,1,1,1,1,1,0,0,0,1,1,1,1,1],[1,1,1,1,1,0,0,1,1,1,1,1,1,1,0,0,1,1,1,1],[1,1,1,1,1,0,0,1,1,1,1,1,1,1,1,0,1,1,1,1],[1,1,1,1,1,0,0,1,1,1,1,1,1,1,1,0,1,1,1,1],[1,1,1,1,1,0,1,1,1,0,0,1,1,1,0,0,1,1,1,1],[1,1,1,1,1,0,1,1,1,0,0,1,1,1,0,1,1,1,1,1],[1,1,0,0,0,0,0,0,1,1,0,0,0,0,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]]},{"label":"14","score":88,"matrix":[[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,0,0,1,1,1,1,1,1,1,0,1,1,1,1],[1,1,1,0,0,0,0,0,1,1,1,1,1,1,0,0,1,1,1,1],[1,1,1,1,1,1,0,0,1,1,1,1,1,0,0,1,1,1,1,1],[1,1,1,1,1,1,0,1,1,1,1,1,1,0,1,1,1,1,1,1],[1,1,1,1,1,1,0,1,1,1,1,1,0,0,1,1,0,1,1,1],[1,1,1,1,1,1,0,1,1,1,1,1,0,1,1,0,1,1,1,1],[1,1,1,1,1,0,0,1,1,1,1,0,1,1,1,0,1,1,1,1],[1,1,1,1,1,0,0,1,1,1,0,0,1,1,1,0,1,1,1,1],[1,1,1,1,1,0,0,1,1,1,0,1,1,1,0,0,1,1,1,1],[1,1,1,1,1,0,0,1,1,0,0,0,0,0,0,0,0,1,1,1],[1,1,1,1,1,0,1,1,1,1,1,1,1,1,0,0,1,1,1,1],[1,1,1,1,1,0,1,1,1,1,1,1,1,1,0,0,1,1,1,1],[1,1,0,0,0,0,0,0,1,1,1,1,1,1,0,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]]},{"label":"21","score":88,"matrix":[[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,0,0,0,0,1,1,1,1,1,0,0,1,1,1],[1,1,1,1,1,0,0,1,1,0,0,1,0,0,0,0,0,1,1,1],[1,1,1,1,1,0,1,1,1,1,0,1,1,1,1,0,0,1,1,1],[1,1,1,1,1,0,1,1,1,1,0,1,1,1,1,0,1,1,1,1],[1,1,1,1,1,1,1,1,1,0,0,1,1,1,1,0,1,1,1,1],[1,1,1,1,1,1,1,1,1,0,0,1,1,1,1,0,1,1,1,1],[1,1,1,1,1,1,1,1,0,0,1,1,1,1,0,0,1,1,1,1],[1,1,1,1,1,1,1,0,0,0,1,1,1,1,0,0,1,1,1,1],[1,1,1,1,1,1,1,0,0,1,1,1,1,1,0,0,1,1,1,1],[1,1,1,1,1,1,0,0,1,1,1,1,1,1,0,0,1,1,1,1],[1,1,1,1,1,0,0,1,1,1,1,1,1,1,0,1,1,1,1,1],[1,1,1,1,0,0,1,1,1,1,1,1,1,1,0,1,1,1,1,1],[1,1,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]]},{"label":"61","score":89,"matrix":[[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,0,1,1,1,1,0,0,1,1,1,1],[1,1,1,1,1,1,1,0,0,1,1,0,0,0,0,0,1,1,1,1],[1,1,1,1,1,1,0,0,1,1,1,1,1,1,0,0,1,1,1,1],[1,1,1,1,1,0,1,1,1,1,1,1,1,1,0,1,1,1,1,1],[1,1,1,1,0,0,1,1,1,1,1,1,1,1,0,1,1,1,1,1],[1,1,1,0,0,1,1,1,1,1,1,1,1,1,0,1,1,1,1,1],[1,1,1,0,0,0,0,0,0,1,1,1,1,0,0,1,1,1,1,1],[1,1,1,0,0,1,1,1,0,0,1,1,1,0,0,1,1,1,1,1],[1,1,0,0,1,1,1,1,0,0,1,1,1,0,0,1,1,1,1,1],[1,1,0,0,1,1,1,1,0,0,1,1,1,0,0,1,1,1,1,1],[1,1,0,0,1,1,1,1,0,1,1,1,1,0,1,1,1,1,1,1],[1,1,1,0,0,1,1,0,0,1,1,1,1,0,1,1,1,1,1,1],[1,1,1,1,0,0,0,0,1,1,0,0,0,0,0,0,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]]},{"label":"81","score":89,"matrix":[[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,0,0,0,1,1,1,1,1,1,0,0,1,1,1],[1,1,1,1,0,0,1,1,1,0,1,1,0,0,0,0,0,1,1,1],[1,1,1,1,0,1,1,1,1,0,1,1,1,1,1,0,0,1,1,1],[1,1,1,1,0,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1],[1,1,1,1,0,0,1,1,0,0,1,1,1,1,1,0,1,1,1,1],[1,1,1,1,0,0,0,0,0,1,1,1,1,1,1,0,1,1,1,1],[1,1,1,1,0,0,0,0,0,1,1,1,1,1,0,0,1,1,1,1],[1,1,1,0,0,1,1,0,0,0,1,1,1,1,0,0,1,1,1,1],[1,1,1,0,1,1,1,1,0,0,1,1,1,1,0,0,1,1,1,1],[1,1,0,0,1,1,1,1,0,0,1,1,1,1,0,0,1,1,1,1],[1,1,0,0,1,1,1,1,0,0,1,1,1,1,0,1,1,1,1,1],[1,1,1,0,1,1,1,0,0,1,1,1,1,1,0,1,1,1,1,1],[1,1,1,1,0,0,0,0,1,1,1,0,0,0,0,0,0,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]]}];
+
+const maxScore = 130;
+
+function buildGrid(container, matrix, classMode) {
+  container.innerHTML = '';
+  matrix.forEach(row => {
+    row.forEach(val => {
+      const px = document.createElement('div');
+      px.className = 'pixel ' + (classMode === 'normal' ? (val === 0 ? 'off' : 'on') :
+        classMode === 'diff' ? (val === 1 ? 'differ' : 'match') : '');
+      container.appendChild(px);
+    });
+  });
+}
+
+function buildMiniGrid(container, matrix, diffMatrix, mode) {
+  container.innerHTML = '';
+  matrix.forEach((row, y) => {
+    row.forEach((val, x) => {
+      const px = document.createElement('div');
+      px.className = 'mini-pixel';
+      if (mode === 'diff') {
+        px.className += diffMatrix[y][x] === 1 ? ' differ' : ' match';
+      } else {
+        px.className += val === 0 ? ' off' : ' on';
+      }
+      container.appendChild(px);
+    });
+  });
+}
+
+function computeDiff(m1, m2) {
+  return m1.map((row, y) => row.map((v, x) => v !== m2[y][x] ? 1 : 0));
+}
+
+function countDiff(diffMatrix) {
+  return diffMatrix.flat().reduce((a, v) => a + v, 0);
+}
+
+// Build input grid
+buildGrid(document.getElementById('inputGrid'), inputMatrix, 'normal');
+
+// Build comparison list
+const list = document.getElementById('compList');
+let selectedIdx = 0;
+
+top10.forEach((entry, i) => {
+  const diff = computeDiff(inputMatrix, entry.matrix);
+  const el = document.createElement('div');
+  el.className = 'entry' + (i === 0 ? ' selected' : '');
+  el.dataset.idx = i;
+
+  const pct = Math.round((1 - entry.score / maxScore) * 100);
+  const barWidth = Math.max(5, Math.round((1 - entry.score / maxScore) * 100));
+
+  el.innerHTML = `
+    <div class="entry-rank"><span class="rank-num">#${i+1}</span></div>
+    <div class="entry-label">${entry.label}</div>
+    <div class="mini-grid" id="mini-ref-${i}"></div>
+    <div class="mini-grid" id="mini-diff-${i}"></div>
+    <div class="score-bar-wrap">
+      <div class="score-label"><span>Distance</span><span class="val">${entry.score}</span></div>
+      <div class="score-bar-bg"><div class="score-bar-fill" style="width:${barWidth}%"></div></div>
+      <div class="score-label"><span>Match</span><span class="val">${pct}%</span></div>
+    </div>
+  `;
+  list.appendChild(el);
+
+  buildMiniGrid(document.getElementById(`mini-ref-${i}`), entry.matrix, null, 'normal');
+  buildMiniGrid(document.getElementById(`mini-diff-${i}`), diff, diff, 'diff');
+
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.entry').forEach(e => e.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedIdx = i;
+    updateDiffPanel(i);
+  });
+});
+
+function updateDiffPanel(idx) {
+  const entry = top10[idx];
+  const diff = computeDiff(inputMatrix, entry.matrix);
+  const diffs = countDiff(diff);
+
+  const panel = document.getElementById('diffGrids');
+  panel.innerHTML = `
+    <div class="diff-item fade-in">
+      <h3>Input</h3>
+      <div class="pixel-grid" id="dp-input"></div>
+    </div>
+    <div class="diff-item fade-in" style="animation-delay:0.05s">
+      <h3>Reference <span style="color:var(--accent)">${entry.label}</span></h3>
+      <div class="pixel-grid" id="dp-ref"></div>
+    </div>
+    <div class="diff-item fade-in" style="animation-delay:0.1s">
+      <h3>Difference</h3>
+      <div class="pixel-grid" id="dp-diff"></div>
+      <div class="diff-score">Mismatched pixels: <span class="num">${diffs}</span></div>
+    </div>
+  `;
+
+  buildGrid(document.getElementById('dp-input'), inputMatrix, 'normal');
+  buildGrid(document.getElementById('dp-ref'), entry.matrix, 'normal');
+  buildGrid(document.getElementById('dp-diff'), diff, 'diff');
+}
+
+updateDiffPanel(0);
+</script>
+</body>
+</html>
