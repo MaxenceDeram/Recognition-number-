@@ -19,7 +19,7 @@ def predict(vector):
 
     return best_digit
 
-matrix = image_to_matrix("image.jpg")
+matrix = image_to_matrix("eight.jpg")
 binary = binarize(matrix)
 vector = matrix_to_vector(binary)
 digit = predict(vector)
