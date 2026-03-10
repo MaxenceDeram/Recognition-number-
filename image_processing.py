@@ -1,172 +1,109 @@
 from PIL import Image
 import os
 
-# ouverture d'une image
-def load_image(path):
-    """Ouvre une image depuis un chemin fichier."""
+def transformer_image(path):
+    # Ouvre l'image, la met en gris, la redimensionne en 10x10
     img = Image.open(path)
-    return img
+    img = img.convert("L")
+    img = img.resize((10, 10))
 
-# conversion en niveaux de gris
-def to_grayscale(img):
-    """Convertit l'image en niveaux de gris."""
-    return img.convert("L")
-
-# binarisation de l'image
-def binarize(img, threshold=128):
-    """
-    Convertit l'image en noir et blanc (0 ou 1)
-    selon un seuil.
-    """
+    # Transforme l'image en matrice binaire puis en vecteur
     pixels = img.load()
-    width, height = img.size
-    binary = []
+    vecteur = []
 
-    for y in range(height):
-        row = []
-        for x in range(width):
-            if pixels[x, y] > threshold:
-                row.append(1)  # blanc
+    for y in range(10):
+        for x in range(10):
+            if pixels[x, y] > 128:
+                vecteur.append(1)
             else:
-                row.append(0)  # noir
-        binary.append(row)
+                vecteur.append(0)
 
-    return binary
+    return vecteur
 
-# redimensionnement de l'image
-def normalize_size(img, size=(10, 10)):
-    """Redimensionne l'image à une taille standard (10x10 par défaut)."""
-    return img.resize(size)
+def construire_base(folder):
+    base = {}
 
-# conversion de l'image en matrice de pixels
-def to_matrix(img):
-    """Convertit l'image en matrice de pixels (liste de listes)."""
-    pixels = img.load()
-    width, height = img.size
-    matrix = []
+    for chiffre in range(1, 10):   # de 1 à 9
+        path = os.path.join(folder, f"{chiffre}.png")
 
-    for y in range(height):
-        row = []
-        for x in range(width):
-            row.append(pixels[x, y])
-        matrix.append(row)
+        if os.path.exists(path):
+            base[chiffre] = transformer_image(path)
+        else:
+            print(f"Image manquante : {path}")
 
-    return matrix
-
-def matrix_to_vector(matrix):
-    """Aplatit une matrice en un vecteur 1D."""
-    vector = []
-    for row in matrix:
-        for pixel in row:
-            vector.append(pixel)
-    return vector
-
-# construction de la base de données
-def build_dataset(folder):
-    """
-    Charge les images de référence (1.png à 9.png) depuis un dossier
-    et retourne un dictionnaire { chiffre : vecteur binaire }.
-    """
-    dataset = {}
-
-    for digit in range(1, 9):
-        path = os.path.join(folder, f"{digit}.png")
-        if not os.path.exists(path):
-            print(f"[ATTENTION] Image manquante : {path}")
-            continue
-
-        img = load_image(path)
-        img = to_grayscale(img)
-        img = normalize_size(img)
-        matrix = to_matrix(img)
-        binary = binarize(img)
-        vector = matrix_to_vector(binary)
-        dataset[digit] = vector
-
-    return dataset
-
-
-# comparaison de vecteurs
-def distance(v1, v2):
-    """Calcule le nombre de pixels différents entre deux vecteurs."""
+    return base
+# Calcule la distance entre deux vecteurs (nombre de pixels différents)
+def calculer_distance(v1, v2):
     diff = 0
-    for a, b in zip(v1, v2):
-        if a != b:
+
+    for i in range(len(v1)):
+        if v1[i] != v2[i]:
             diff += 1
+
     return diff
 
-def recognize(image_path, dataset):
-    """
-    Compare le vecteur de l'image cible avec la base de données
-    et retourne le chiffre le plus proche.
-    """
-    img = load_image(image_path)
-    img = to_grayscale(img)
-    img = normalize_size(img)
-    binary = binarize(img)
-    vector = matrix_to_vector(binary)
+def reconnaitre_chiffre(image_path, base):
+    vecteur_test = transformer_image(image_path)
 
-    best_digit = None
-    best_score = float("inf")
+    meilleur_chiffre = None
+    meilleure_distance = 1000000 
 
-    for digit, ref_vector in dataset.items():
-        score = distance(vector, ref_vector)
-        if score < best_score:
-            best_score = score
-            best_digit = digit
+    for chiffre in base:
+        dist = calculer_distance(vecteur_test, base[chiffre])
 
-    return best_digit, best_score
+        if dist < meilleure_distance:
+            meilleure_distance = dist
+            meilleur_chiffre = chiffre
 
-# réception de l'image cible et affichage du résultat
+    return meilleur_chiffre, meilleure_distance
+
+def afficher_image_binaire(path):
+    img = Image.open(path)
+    img = img.convert("L")
+    img = img.resize((10, 10))
+
+    pixels = img.load()
+
+    for y in range(10):
+        ligne = []
+        for x in range(10):
+            if pixels[x, y] > 128:
+                ligne.append("1")
+            else:
+                ligne.append("0")
+        print(" ".join(ligne))
+
 def main():
-    print("=== Reconnaissance de chiffres ===\n")
+    print("=== Reconnaissance de chiffres ===")
 
-    # Dossier contenant les images de référence (là où se trouve ce script)
-    folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Image")
+    dossier = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Image")
 
-    # chargement de la base de données
-    print("Chargement de la base de données...")
-    dataset = build_dataset(folder)
-    print(f"{len(dataset)} chiffres chargés.\n")
+    print("Chargement des références...")
+    base = construire_base(dossier)
+    print(f"{len(base)} chiffres chargés.\n")
 
     while True:
-        path = input("Entrez le chemin de votre image (ou 'q' pour quitter) : ").strip()
+        chemin = input("Chemin de l'image à tester (ou q pour quitter) : ")
 
-        if path.lower() == 'q':
+        if chemin.lower() == "q":
             print("Au revoir !")
             break
 
         try:
-            digit, score = recognize(path, dataset)
+            chiffre, score = reconnaitre_chiffre(chemin, base)
 
-            # Affichage visuel de votre image
-            img = load_image(path)
-            img = to_grayscale(img)
-            img = normalize_size(img)
-            binary = binarize(img)
+            print("\n--- Votre image ---")
+            afficher_image_binaire(chemin)
 
-            print("\n── Votre image ──")
-            for row in binary:
-                print(" ".join("0" if p == 0 else "1" for p in row))
+            ref_path = os.path.join(dossier, f"{chiffre}.png")
+            print(f"\n--- Référence : {chiffre} ---")
+            afficher_image_binaire(ref_path)
 
-            # Affichage de la matrice de référence
-            ref_path = os.path.join(folder, f"{digit}.png")
-            ref_img = load_image(ref_path)
-            ref_img = to_grayscale(ref_img)
-            ref_img = normalize_size(ref_img)
-            ref_binary = binarize(ref_img)
-
-            print(f"\n── Référence (chiffre {digit}) ──")
-            for row in ref_binary:
-                print(" ".join("0" if p == 0 else "1" for p in row))
-
-            print(f"\n➜  Chiffre reconnu : {digit}  (score de différence : {score} pixels)\n")
-
-        except FileNotFoundError:
-            print(f"[ERREUR] Fichier introuvable : {path}\n")
+            print(f"\nChiffre reconnu : {chiffre}")
+            print(f"Différence : {score} pixels\n")
+        
         except Exception as e:
-            print(f"[ERREUR] {e}\n")
+            print(f"Erreur : {e}\n")
 
-
-if __name__ == "__main__":  # point d'entrée du script
+if __name__ == "__main__":
     main()
